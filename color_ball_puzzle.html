@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Color Ball Puzzle</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface-hover: #243044;
+      --border: #2d3a4f;
+      --text: #e8edf4;
+      --text-muted: #8b9cb3;
+      --accent: #7c6aef;
+      --mark-color: #ffffff;
+      --radius: 10px;
+      --grid-size: 5;
+      --cell-size: min(calc(85vw / var(--grid-size)), calc(35vh / var(--grid-size)), 64px);
+    }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(124, 106, 239, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(91, 156, 245, 0.08), transparent);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem;
+      touch-action: manipulation;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 0.75rem;
+    }
+
+    h1 {
+      font-size: clamp(1.3rem, 4vw, 1.8rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+      font-size: clamp(0.75rem, 2.5vw, 0.9rem);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .metrics-card {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.6rem;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.3rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .metrics-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+    }
+
+    .metrics-card:active {
+      transform: scale(0.98);
+    }
+
+    .metric-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .metric-label {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.1rem;
+    }
+
+    .metric-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .loader-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      text-align: center;
+      width: 100%;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loader-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .setup {
+      width: 100%;
+    }
+
+    .setup h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.75rem;
+      text-align: center;
+    }
+
+    .size-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+
+    .size-btn {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 0.65rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .size-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent);
+    }
+
+    .size-label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .size-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .rules {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      width: 100%;
+    }
+
+    .rules h3 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+
+    .rules ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .rules li {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.3;
+      padding-left: 0.8rem;
+      position: relative;
+    }
+
+    .rules li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+
+    .rules strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .game {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.3rem;
+      margin-bottom: 0.5rem;
+      width: 100%;
+    }
+
+    .lives-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: var(--surface);
+      padding: 0.2rem 0.4rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .back-btn,
+    .reset-btn,
+    .action-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 0.35rem 0.55rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .action-btn {
+      border: none;
+      padding: 0.2rem 0.3rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .back-btn:hover,
+    .reset-btn:hover,
+    .action-btn:not(:disabled):hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .charge-icons {
+      display: flex;
+      gap: 1px;
+    }
+
+    .charge-icon {
+      font-size: 0.75rem;
+      transition: filter 0.25s, opacity 0.25s;
+    }
+
+    .charge-icon.used {
+      filter: grayscale(100%) brightness(0.4);
+      opacity: 0.4;
+    }
+
+    .status-message {
+      text-align: center;
+      margin-bottom: 0.6rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      min-height: 1.2em;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(var(--grid-size), var(--cell-size));
+      grid-template-rows: repeat(var(--grid-size), var(--cell-size));
+      gap: min(4px, 1vw);
+      justify-content: center;
+      margin-bottom: 0.6rem;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border: 1.5px solid rgba(0, 0, 0, 0.25);
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 0;
+      font-size: calc(var(--cell-size) * 0.55);
+      font-weight: 900;
+      line-height: 1;
+      color: var(--mark-color);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .cell:disabled {
+      cursor: default;
+    }
+
+    .cell.marked {
+      color: #ffffff00;
+      font-weight: 900;
+      -webkit-text-stroke: 1px #ffffff00;
+      paint-order: stroke fill;
+    }
+
+    .cell.revealed-empty {
+      color: #ffffff;
+      font-weight: 900;
+      -webkit-text-stroke: 1px #000000;
+      paint-order: stroke fill;
+      filter: brightness(0.85);
+    }
+
+    .cell.revealed-ball {
+      cursor: default;
+    }
+
+    .ball {
+      width: 55%;
+      height: 55%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ffffff 0%, #d0d0d0 35%, #888 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.85);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    }
+
+    #legend {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 0.6rem;
+      min-height: 20px;
+      width: 100%;  
+    }
+
+    .legend-ball-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .legend-ball-icon {
+      width: clamp(12px, 3vw, 18px);
+      height: clamp(12px, 3vw, 18px);
+      border-radius: 50%;
+      border: 1.5px solid rgba(0, 0, 0, 0.4);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      transition: background-color 0.25s ease;
+    }
+
+    @keyframes hintGlow {
+      0% {
+        box-shadow: 0 0 0 0px rgba(255, 215, 0, 0.9);
+        filter: brightness(1.4);
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(255, 215, 0, 0);
+        filter: brightness(1.8);
+      }
+      100% {
+        box-shadow: 0 0 0 0px rgba(255, 215, 0, 0);
+        filter: brightness(1);
+      }
+    }
+
+    .cell.hint-pulse {
+      animation: hintGlow 1.2s ease-in-out 2;
+      z-index: 2;
+    }
+
+    @keyframes boardWinPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    .board.win-pulse {
+      animation: boardWinPulse 1.8s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Color Ball Puzzle</h1>
+      <p class="subtitle">Find the hidden balls using color and placement clues</p>
+    </header>
+
+    <section class="setup" id="setup">
+      <h2>Choose grid size</h2>
+      <div class="size-buttons">
+        <button class="size-btn" data-size="5">
+          <span class="size-label">5 × 5</span>
+          <span class="size-desc">Easy • 5 Balls</span>
+        </button>
+        <button class="size-btn" data-size="6">
+          <span class="size-label">6 × 6</span>
+          <span class="size-desc">Medium • 6 Balls</span>
+        </button>
+        <button class="size-btn" data-size="7">
+          <span class="size-label">7 × 7</span>
+          <span class="size-desc">Hard • 7 Balls</span>
+        </button>
+        <button class="size-btn" data-size="8">
+          <span class="size-label">8 × 8</span>
+          <span class="size-desc">Expert • 8 Balls</span>
+        </button>
+        <button class="size-btn" data-size="9">
+          <span class="size-label">9 × 9</span>
+          <span class="size-desc">Master • 9 Balls</span>
+        </button>
+        <button class="size-btn" data-size="10">
+          <span class="size-label">10 × 10</span>
+          <span class="size-desc">Grandmaster • 10 Balls</span>
+        </button>
+        <button class="size-btn" data-size="11">
+          <span class="size-label">11 × 11</span>
+          <span class="size-desc">Extreme • 11 Balls</span>
+        </button>
+        <button class="size-btn" data-size="12">
+          <span class="size-label">12 × 12</span>
+          <span class="size-desc">Insane • 12 Balls</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="loader-view hidden" id="loader-view">
+      <div class="spinner"></div>
+      <div class="loader-text" id="loader-text">Generating puzzle...</div>
+    </section>
+
+    <section class="game hidden" id="game">
+      <div class="game-header">
+        <button id="back-btn" class="back-btn">← Back</button>
+
+        <div class="action-group">
+          <button id="hint-btn" class="action-btn">💡 Hint</button>
+          <div id="hint-charges" class="charge-icons">
+            <span class="charge-icon">💡</span>
+            <span class="charge-icon">💡</span>
+            <span class="charge-icon">💡</span>
+            <span class="charge-icon">💡</span>
+            <span class="charge-icon">💡</span>
+          </div>
+        </div>
+
+        <div class="action-group">
+          <button id="reveal-btn" class="action-btn">🔮 Reveal</button>
+          <div id="reveal-charges" class="charge-icons">
+            <span class="charge-icon">🔮</span>
+            <span class="charge-icon">🔮</span>
+            <span class="charge-icon">🔮</span>
+          </div>
+        </div>
+
+        <button id="reset-btn" class="reset-btn">Reset</button>
+      </div>
+      
+      <div class="lives-row">
+        <div class="action-group">
+          <span style="font-size: 0.75rem; font-weight: 600;">Lives:</span>
+          <div id="lives-charges" class="charge-icons">
+            <span class="charge-icon">❤️</span>
+            <span class="charge-icon">❤️</span>
+            <span class="charge-icon">❤️</span>
+          </div>
+        </div>
+      </div>
+
+      <button id="metrics-btn" class="metrics-card" type="button" title="Click to recompute metrics for current board state">
+        <div class="metric-item">
+          <span class="metric-label">Max Depth</span>
+          <span class="metric-value" id="metric-depth">0</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Branches</span>
+          <span class="metric-value" id="metric-branches">0</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Rating</span>
+          <span class="metric-value" id="metric-rating">0.00</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Unique</span>
+          <span class="metric-value" id="metric-unique">Yes</span>
+        </div>
+      </button>
+
+      <div id="legend"></div>
+      
+      <div class="board" id="board" role="grid" aria-label="Puzzle board"></div>
+
+      <div id="status" class="status-message"></div>
+
+      <div class="rules">
+        <h3>How to play</h3>
+        <ul>
+          <li>Each square shows a color with exactly 1 hidden ball per color.</li>
+          <li>1 ball per row/column; no balls in adjacent squares.</li>
+          <li><strong>Single-Click / Drag:</strong> Mark squares with ✕.</li>
+          <li><strong>Double-Click:</strong> Reveal a square — wrong guesses lose 1 life!</li>
+          <li><strong>Metrics Card:</strong> Click anytime to recalculate remaining difficulty and check board uniqueness!</li>
+        </ul>
+      </div>
+
+    </section>
+  </div>
+
+  <script>
+    const PALETTE = [
+      "#e6194B", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4",
+      "#42d4f4", "#f032e6", "#bfef45", "#1abc9c", "#e6beff", "#9a6324"
+    ];
+
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      try {
+        initAudio();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'mark') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (type === 'empty') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.linearRampToValueAtTime(110, now + 0.12);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'ball') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          osc.frequency.setValueAtTime(783.99, now + 0.16);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'hint') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, now);
+          osc.frequency.setValueAtTime(880, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'win') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const noteOsc = audioCtx.createOscillator();
+            const noteGain = audioCtx.createGain();
+            noteOsc.type = 'triangle';
+            noteOsc.frequency.setValueAtTime(freq, now + idx * 0.1);
+            noteGain.gain.setValueAtTime(0.2, now + idx * 0.1);
+            noteGain.gain.linearRampToValueAtTime(0.01, now + idx * 0.1 + 0.3);
+            noteOsc.connect(noteGain);
+            noteGain.connect(audioCtx.destination);
+            noteOsc.start(now + idx * 0.1);
+            noteOsc.stop(now + idx * 0.1 + 0.3);
+          });
+        } else if (type === 'lose') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(200, now);
+          osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        }
+      } catch (e) {
+        console.warn("Audio Context Error:", e);
+      }
+    }
+
+    const setupEl = document.getElementById("setup");
+    const loaderEl = document.getElementById("loader-view");
+    const loaderTextEl = document.getElementById("loader-text");
+    const gameEl = document.getElementById("game");
+    const boardEl = document.getElementById("board");
+    const statusEl = document.getElementById("status");
+    const legendEl = document.getElementById("legend");
+    const backBtn = document.getElementById("back-btn");
+    const resetBtn = document.getElementById("reset-btn");
+    const hintBtn = document.getElementById("hint-btn");
+    const hintChargesEl = document.getElementById("hint-charges");
+    const revealBtn = document.getElementById("reveal-btn");
+    const revealChargesEl = document.getElementById("reveal-charges");
+    const livesChargesEl = document.getElementById("lives-charges");
+
+    const metricsBtn = document.getElementById("metrics-btn");
+    const metricDepthEl = document.getElementById("metric-depth");
+    const metricBranchesEl = document.getElementById("metric-branches");
+    const metricRatingEl = document.getElementById("metric-rating");
+    const metricUniqueEl = document.getElementById("metric-unique");
+
+    let n = 5;
+    let colors = [];
+    let gridColors = [];
+    let ballRows = [];
+    let cellState = [];
+    let revealedCount = 0;
+    let revealsRemaining = 3;
+    let hintsRemaining = 5;
+    let livesRemaining = 3;
+    let gameOver = false;
+
+    let isMouseDown = false;
+    let dragMarkMode = null;
+    let lastClickTimes = {};
+    let isDragging = false;
+
+    const ORTHO = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+
+    function formatRating(num) {
+      if (num >= 1e9) {
+        return (num / 1e9).toFixed(2) + " G";
+      } else if (num >= 1e6) {
+        return (num / 1e6).toFixed(2) + " M";
+      } else if (num >= 1e3) {
+        return (num / 1e3).toFixed(2) + " K";
+      }
+      return num.toFixed(2);
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+
+    function generateValidBallPlacement(size) {
+      if (size < 5) return null;
+      const cols = Array.from({ length: size }, (_, i) => i);
+      for (let attempt = 0; attempt < 2000; attempt++) {
+        shuffle(cols);
+        let valid = true;
+        for (let r = 1; r < size; r++) {
+          if (Math.abs(cols[r] - cols[r - 1]) <= 1) {
+            valid = false;
+            break;
+          }
+        }
+        if (valid) return cols;
+      }
+      return null;
+    }
+
+    function areColorRegionsConnected(grid, size) {
+      for (let colorIdx = 0; colorIdx < size; colorIdx++) {
+        const cells = [];
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            if (grid[r][c] === colorIdx) cells.push([r, c]);
+          }
+        }
+        if (cells.length === 0) return false;
+
+        const visited = new Set([`${cells[0][0]},${cells[0][1]}`]);
+        const queue = [cells[0]];
+
+        while (queue.length > 0) {
+          const [r, c] = queue.shift();
+          for (const [dr, dc] of ORTHO) {
+            const nr = r + dr;
+            const nc = c + dc;
+            const key = `${nr},${nc}`;
+            if (
+              nr >= 0 && nr < size && nc >= 0 && nc < size &&
+              grid[nr][nc] === colorIdx && !visited.has(key)
+            ) {
+              visited.add(key);
+              queue.push([nr, nc]);
+            }
+          }
+        }
+        if (visited.size !== cells.length) return false;
+      }
+      return true;
+    }
+
+    function generateInductiveUniqueGrid(size, ballCols) {
+      const grid = Array.from({ length: size }, () => Array(size).fill(-1));
+      for (let k = 0; k < size - 1; k++) {
+        const ballRow = k;
+        const ballCol = ballCols[k];
+        grid[ballRow][ballCol] = k;
+        for (const [dr, dc] of ORTHO) {
+          const nr = ballRow + dr;
+          const nc = ballCol + dc;
+          if (nr >= 0 && nr < size && nc >= 0 && nc < size && grid[nr][nc] === -1) {
+            grid[nr][nc] = k;
+            break;
+          }
+        }
+      }
+      const lastIdx = size - 1;
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (grid[r][c] === -1) grid[r][c] = lastIdx;
+        }
+      }
+      return grid;
+    }
+
+    function isPuzzleUnique(grid, size, currentBoardState = null) {
+      let solutionsCount = 0;
+      const maxSteps = 50000;
+      let steps = 0;
+
+      function backtrack(row, placement, usedColsMask, usedColorsMask) {
+        if (solutionsCount >= 2 || steps > maxSteps) return;
+        steps++;
+        if (row === size) {
+          solutionsCount++;
+          return;
+        }
+        for (let col = 0; col < size; col++) {
+          if (usedColsMask & (1 << col)) continue;
+
+          if (currentBoardState) {
+            const state = currentBoardState[row][col];
+            if (state === "marked" || state === "empty") continue;
+          }
+
+          const colorIdx = grid[row][col];
+          if (usedColorsMask & (1 << colorIdx)) continue;
+          let ok = true;
+          for (let r = 0; r < row; r++) {
+            if (Math.abs(row - r) <= 1 && Math.abs(col - placement[r]) <= 1) {
+              ok = false;
+              break;
+            }
+          }
+          if (!ok) continue;
+          placement[row] = col;
+          backtrack(row + 1, placement, usedColsMask | (1 << col), usedColorsMask | (1 << colorIdx));
+        }
+      }
+
+      backtrack(0, Array(size).fill(-1), 0, 0);
+      return solutionsCount === 1;
+    }
+
+    function getStealableCandidates(grid, size, targetColor, ballCols, regionCountsMap) {
+      const candidates = [];
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (grid[r][c] === targetColor) {
+            for (const [dr, dc] of ORTHO) {
+              const nr = r + dr;
+              const nc = c + dc;
+              if (nr >= 0 && nr < size && nc >= 0 && nc < size) {
+                const neighborColor = grid[nr][nc];
+                if (neighborColor !== targetColor && ballCols[nr] !== nc) {
+                  candidates.push({
+                    r: nr,
+                    c: nc,
+                    originalColor: neighborColor,
+                    donorSize: regionCountsMap[neighborColor],
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+      candidates.sort((a, b) => b.donorSize !== a.donorSize ? b.donorSize - a.donorSize : Math.random() - 0.5);
+      return candidates;
+    }
+
+    function optimizeGridByStealing(initialGrid, size, ballCols) {
+      const grid = initialGrid.map((row) => [...row]);
+      let optimizationActive = true;
+      let totalSteals = 0;
+      const cellHistory = {};
+
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          cellHistory[`${r},${c}`] = new Set([grid[r][c]]);
+        }
+      }
+
+      while (optimizationActive) {
+        optimizationActive = false;
+        const regionCounts = Array.from({ length: size }, (_, colorIdx) => ({ color: colorIdx, count: 0 }));
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            regionCounts[grid[r][c]].count++;
+          }
+        }
+        const regionCountsMap = {};
+        regionCounts.forEach((rc) => regionCountsMap[rc.color] = rc.count);
+        regionCounts.sort((a, b) => a.count - b.count);
+
+        for (const region of regionCounts) {
+          const smallestColor = region.color;
+          let candidates = getStealableCandidates(grid, size, smallestColor, ballCols, regionCountsMap);
+          let stolenSuccessfully = false;
+
+          for (const candidate of candidates) {
+            const { r, c, originalColor, donorSize } = candidate;
+            const cellKey = `${r},${c}`;
+            if (cellHistory[cellKey].has(smallestColor)) continue;
+            if (donorSize <= 1) continue;
+
+            grid[r][c] = smallestColor;
+            if (areColorRegionsConnected(grid, size) && isPuzzleUnique(grid, size)) {
+              stolenSuccessfully = true;
+              optimizationActive = true;
+              totalSteals++;
+              cellHistory[cellKey].add(smallestColor);
+              break;
+            }
+            grid[r][c] = originalColor;
+          }
+          if (stolenSuccessfully) break;
+        }
+      }
+      return { grid, totalSteals };
+    }
+
+    function evaluatePuzzleDifficulty(grid, size, startState = null) {
+      let maxDepth = 0;
+      let totalBranches = 0;
+      let logicSteps = 0;
+      let nodeCount = 0;
+      const MAX_SOLVER_NODES = 1200;
+      const branchesPerDepth = {};
+
+      function applyPureLogic(state) {
+        let changed = false;
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            if (state[r][c] !== "hidden") continue;
+
+            let invalid = false;
+            for (let br = 0; br < size; br++) {
+              for (let bc = 0; bc < size; bc++) {
+                if (state[br][bc] === "ball") {
+                  if (
+                    (r === br && c !== bc) ||
+                    (c === bc && r !== br) ||
+                    (Math.abs(r - br) <= 1 && Math.abs(c - bc) <= 1 && !(r === br && c === bc)) ||
+                    (grid[r][c] === grid[br][bc] && !(r === br && c === bc))
+                  ) {
+                    invalid = true;
+                    break;
+                  }
+                }
+              }
+              if (invalid) break;
+            }
+
+            if (invalid) {
+              state[r][c] = "marked";
+              changed = true;
+              logicSteps++;
+            }
+          }
+        }
+        return changed;
+      }
+
+      function checkContradiction(state) {
+        for (let i = 0; i < size; i++) {
+          let rowBalls = 0, rowOpts = 0;
+          let colBalls = 0, colOpts = 0;
+          for (let j = 0; j < size; j++) {
+            if (state[i][j] === "ball") rowBalls++;
+            if (state[i][j] !== "marked" && state[i][j] !== "empty") rowOpts++;
+            if (state[j][i] === "ball") colBalls++;
+            if (state[j][i] !== "marked" && state[j][i] !== "empty") colOpts++;
+          }
+          if (rowBalls > 1 || rowOpts === 0 || colBalls > 1 || colOpts === 0) return true;
+        }
+        return false;
+      }
+
+      function isSolved(state) {
+        let balls = 0;
+        for (let r = 0; r < size; r++) {
+          for (let c = 0; c < size; c++) {
+            if (state[r][c] === "ball") balls++;
+          }
+        }
+        return balls === size;
+      }
+
+      function getBestCandidate(state) {
+        let minOpts = Infinity;
+        let bestCell = null;
+
+        for (let r = 0; r < size; r++) {
+          let opts = 0;
+          let firstHiddenCol = -1;
+          for (let c = 0; c < size; c++) {
+            if (state[r][c] === "hidden") {
+              opts++;
+              if (firstHiddenCol === -1) firstHiddenCol = c;
+            }
+          }
+          if (opts > 0 && opts < minOpts) {
+            minOpts = opts;
+            bestCell = { r, c: firstHiddenCol };
+          }
+        }
+        return bestCell;
+      }
+
+      function solveState(state, depth) {
+        nodeCount++;
+        if (nodeCount > MAX_SOLVER_NODES) return "TIMEOUT";
+
+        while (applyPureLogic(state)) {
+          if (checkContradiction(state)) return "CONTRADICTION";
+          if (isSolved(state)) return "SOLVED";
+        }
+
+        if (checkContradiction(state)) return "CONTRADICTION";
+        if (isSolved(state)) return "SOLVED";
+
+        maxDepth = Math.max(maxDepth, depth);
+
+        const cand = getBestCandidate(state);
+        if (!cand) return "STUCK";
+
+        totalBranches++;
+        branchesPerDepth[depth] = (branchesPerDepth[depth] || 0) + 1;
+
+        const testState = state.map((row) => [...row]);
+        testState[cand.r][cand.c] = "ball";
+
+        const res = solveState(testState, depth + 1);
+        if (res === "CONTRADICTION") {
+          state[cand.r][cand.c] = "marked";
+          logicSteps++;
+          return solveState(state, depth);
+        }
+
+        return res;
+      }
+
+      const initialState = startState
+        ? startState.map((row) => [...row])
+        : Array.from({ length: size }, () => Array(size).fill("hidden"));
+
+      solveState(initialState, 0);
+
+      let difficultyScore = logicSteps;
+      Object.keys(branchesPerDepth).forEach((d) => {
+        difficultyScore += branchesPerDepth[d] * Math.pow(10, Number(d));
+      });
+
+      return {
+        maxDepth,
+        totalBranches,
+        rating: formatRating(difficultyScore)
+      };
+    }
+
+    function generatePuzzle(size) {
+      if (size < 5) throw new Error("Grid size must be at least 5x5.");
+      let ballCols, baseGrid, optimizedGrid, totalSteals = 0, attempts = 0;
+      const maxAttempts = 100;
+
+      do {
+        ballCols = generateValidBallPlacement(size);
+        baseGrid = generateInductiveUniqueGrid(size, ballCols);
+        const result = optimizeGridByStealing(baseGrid, size, ballCols);
+        optimizedGrid = result.grid;
+        totalSteals = result.totalSteals;
+        attempts++;
+      } while (totalSteals === 0 && attempts < maxAttempts);
+
+      const colorIndices = Array.from({ length: size }, (_, i) => i);
+      const shuffledIndices = shuffle(colorIndices);
+      const puzzleColors = shuffledIndices.map((i) => PALETTE[i]);
+      const mappedGrid = optimizedGrid.map((row) => row.map((val) => shuffledIndices.indexOf(val)));
+
+      const metrics = evaluatePuzzleDifficulty(mappedGrid, size);
+
+      return { n: size, colors: puzzleColors, gridColors: mappedGrid, ballRows: ballCols, metrics };
+    }
+
+    function hasBall(row, col) {
+      return ballRows[row] === col;
+    }
+
+    function initCellState(size) {
+      return Array.from({ length: size }, () => Array(size).fill("hidden"));
+    }
+
+    function recalculateCurrentMetrics() {
+      if (gameOver) return;
+      const metrics = evaluatePuzzleDifficulty(gridColors, n, cellState);
+      const unique = isPuzzleUnique(gridColors, n, cellState);
+
+      metricDepthEl.textContent = metrics.maxDepth;
+      metricBranchesEl.textContent = metrics.totalBranches;
+      metricRatingEl.textContent = metrics.rating;
+      metricUniqueEl.textContent = unique ? "Yes" : "No";
+
+      playSound('mark');
+    }
+
+    function startGame(size) {
+      initAudio();
+      if (size < 5) size = 5;
+      n = size;
+
+      document.documentElement.style.setProperty('--grid-size', n);
+
+      setupEl.classList.add("hidden");
+      gameEl.classList.add("hidden");
+      loaderEl.classList.remove("hidden");
+      loaderTextEl.textContent = `Generating ${n}×${n} puzzle...`;
+
+      setTimeout(() => newPuzzle(), 60);
+    }
+
+    function backToMenu() {
+      gameEl.classList.add("hidden");
+      loaderEl.classList.add("hidden");
+      setupEl.classList.remove("hidden");
+      boardEl.classList.remove("win-pulse");
+      gameOver = false;
+    }
+
+    function updateChargesUI() {
+      const livesIcons = livesChargesEl.querySelectorAll(".charge-icon");
+      livesIcons.forEach((icon, idx) => {
+        if (idx >= livesRemaining) {
+          icon.classList.add("used");
+        } else {
+          icon.classList.remove("used");
+        }
+      });
+
+      const hintIcons = hintChargesEl.querySelectorAll(".charge-icon");
+      hintIcons.forEach((icon, idx) => {
+        if (idx >= hintsRemaining) {
+          icon.classList.add("used");
+        } else {
+          icon.classList.remove("used");
+        }
+      });
+      hintBtn.disabled = hintsRemaining <= 0 || gameOver;
+
+      const revealIcons = revealChargesEl.querySelectorAll(".charge-icon");
+      revealIcons.forEach((icon, idx) => {
+        if (idx >= revealsRemaining) {
+          icon.classList.add("used");
+        } else {
+          icon.classList.remove("used");
+        }
+      });
+      revealBtn.disabled = revealsRemaining <= 0 || gameOver;
+    }
+
+    function newPuzzle() {
+      try {
+        const puzzle = generatePuzzle(n);
+        colors = puzzle.colors;
+        gridColors = puzzle.gridColors;
+        ballRows = puzzle.ballRows;
+        cellState = initCellState(n);
+        revealedCount = 0;
+        revealsRemaining = 3;
+        hintsRemaining = 5;
+        livesRemaining = 3;
+        gameOver = false;
+        lastClickTimes = {};
+        isMouseDown = false;
+        dragMarkMode = null;
+        isDragging = false;
+
+        metricDepthEl.textContent = puzzle.metrics.maxDepth;
+        metricBranchesEl.textContent = puzzle.metrics.totalBranches;
+        metricRatingEl.textContent = puzzle.metrics.rating;
+        metricUniqueEl.textContent = "Yes";
+
+        boardEl.classList.remove("win-pulse");
+        renderLegend();
+        renderBoard();
+        updateChargesUI();
+        updateStatus();
+
+        loaderEl.classList.add("hidden");
+        gameEl.classList.remove("hidden");
+      } catch (err) {
+        console.error(err);
+        loaderEl.classList.add("hidden");
+        setupEl.classList.remove("hidden");
+        alert("Error generating puzzle. Please try again.");
+      }
+    }
+
+    function updateStatus(message) {
+      if (!statusEl) return;
+      if (message) {
+        statusEl.textContent = message;
+        return;
+      }
+      statusEl.textContent = `Balls found: ${revealedCount} / ${n}`;
+    }
+
+    function renderLegend() {
+      if (!legendEl) return;
+      legendEl.innerHTML = "";
+
+      colors.forEach((color, colorIdx) => {
+        const ballItem = document.createElement("div");
+        ballItem.className = "legend-ball-item";
+        let isRevealed = false;
+
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            if (gridColors[r][c] === colorIdx && cellState[r][c] === "ball") {
+              isRevealed = true;
+              break;
+            }
+          }
+          if (isRevealed) break;
+        }
+
+        const ballIcon = document.createElement("span");
+        ballIcon.className = "legend-ball-icon";
+        ballIcon.style.backgroundColor = isRevealed ? color : "#ffffff";
+        ballItem.appendChild(ballIcon);
+        legendEl.appendChild(ballItem);
+      });
+    }
+
+    function renderBoard() {
+      boardEl.innerHTML = "";
+
+      for (let row = 0; row < n; row++) {
+        for (let col = 0; col < n; col++) {
+          const cell = document.createElement("button");
+          cell.className = "cell";
+          cell.type = "button";
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.style.backgroundColor = colors[gridColors[row][col]];
+          updateCellElement(cell, row, col);
+          
+          boardEl.appendChild(cell);
+        }
+      }
+    }
+
+    function getCellElement(row, col) {
+      return boardEl.children[row * n + col];
+    }
+
+    function updateCellElement(cell, row, col) {
+      const state = cellState[row][col];
+      cell.className = "cell";
+      cell.textContent = "";
+      cell.disabled = gameOver || state === "ball" || state === "empty";
+
+      if (state === "marked" || state === "empty") {
+        cell.classList.add(state === "empty" ? "revealed-empty" : "marked");
+        cell.textContent = "✕";
+      } else if (state === "ball") {
+        cell.classList.add("revealed-ball");
+        const ball = document.createElement("span");
+        ball.className = "ball";
+        cell.appendChild(ball);
+      }
+    }
+
+    function markSquareTarget(row, col, targetMode) {
+      const state = cellState[row][col];
+      if (state === "ball" || state === "empty") return;
+
+      if (cellState[row][col] !== targetMode) {
+        cellState[row][col] = targetMode;
+        updateCellElement(getCellElement(row, col), row, col);
+        playSound('mark');
+      }
+    }
+
+    function autoMarkInvalidSquares(ballRow, ballCol) {
+      const ballColor = gridColors[ballRow][ballCol];
+
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (r === ballRow && c === ballCol) continue;
+          
+          const isSameRow = r === ballRow;
+          const isSameCol = c === ballCol;
+          const isAdjacent = Math.abs(r - ballRow) <= 1 && Math.abs(c - ballCol) <= 1;
+          const isSameColor = gridColors[r][c] === ballColor;
+
+          if ((isSameRow || isSameCol || isAdjacent || isSameColor) && (cellState[r][c] === "hidden" || cellState[r][c] === "marked")) {
+            cellState[r][c] = "marked";
+            updateCellElement(getCellElement(r, c), r, c);
+          }
+        }
+      }
+    }
+
+    function revealSquare(row, col) {
+      if (hasBall(row, col)) {
+        cellState[row][col] = "ball";
+        revealedCount++;
+        updateCellElement(getCellElement(row, col), row, col);
+        autoMarkInvalidSquares(row, col);
+        renderLegend();
+        playSound('ball');
+
+        if (revealedCount === n) {
+          endGame(true);
+        } else {
+          updateStatus();
+        }
+      } else {
+        cellState[row][col] = "empty";
+        updateCellElement(getCellElement(row, col), row, col);
+        
+        livesRemaining--;
+        updateChargesUI();
+
+        if (livesRemaining <= 0) {
+          playSound('lose');
+          endGame(false);
+        } else {
+          playSound('empty');
+          updateStatus(`Wrong guess! ${livesRemaining} ${livesRemaining === 1 ? 'life' : 'lives'} left.`);
+        }
+      }
+    }
+
+    function revealOneBall() {
+      if (gameOver || revealsRemaining <= 0) return;
+
+      const unrevealedBallCoords = [];
+      for (let r = 0; r < n; r++) {
+        const c = ballRows[r];
+        if (cellState[r][c] !== "ball") {
+          unrevealedBallCoords.push({ r, c });
+        }
+      }
+
+      if (unrevealedBallCoords.length === 0) return;
+
+      revealsRemaining--;
+      updateChargesUI();
+
+      const choice = unrevealedBallCoords[Math.floor(Math.random() * unrevealedBallCoords.length)];
+      revealSquare(choice.r, choice.c);
+    }
+
+    function getCombinations(arr, k) {
+      const results = [];
+      function backtrack(start, combo) {
+        if (combo.length === k) {
+          results.push([...combo]);
+          return;
+        }
+        for (let i = start; i < arr.length; i++) {
+          combo.push(arr[i]);
+          backtrack(i + 1, combo);
+          combo.pop();
+        }
+      }
+      backtrack(0, []);
+      return results;
+    }
+
+    function findDeductibleXMarks() {
+      const candidates = [];
+      const candidateSet = new Set();
+
+      function addCandidate(r, c, reason) {
+        const key = `${r},${c}`;
+        if (!candidateSet.has(key)) {
+          candidateSet.add(key);
+          candidates.push({ row: r, col: c, reason });
+        }
+      }
+
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (cellState[r][c] !== "hidden") continue;
+          let reason = null;
+
+          for (let br = 0; br < n; br++) {
+            const bc = ballRows[br];
+            if (cellState[br][bc] === "ball") {
+              if (r === br && c === bc) continue;
+              if (r === br) {
+                reason = `Row ${r + 1} already has a ball found at column ${bc + 1}.`;
+                break;
+              }
+              if (c === bc) {
+                reason = `Column ${c + 1} already has a ball found at row ${br + 1}.`;
+                break;
+              }
+              if (Math.abs(r - br) <= 1 && Math.abs(c - bc) <= 1) {
+                reason = `It is adjacent to the ball at row ${br + 1}, column ${bc + 1}.`;
+                break;
+              }
+            }
+          }
+
+          if (!reason) {
+            const cellColor = gridColors[r][c];
+            for (let cr = 0; cr < n; cr++) {
+              for (let cc = 0; cc < n; cc++) {
+                if (gridColors[cr][cc] === cellColor && cellState[cr][cc] === "ball") {
+                  reason = `This color region already contains a revealed ball.`;
+                  break;
+                }
+              }
+              if (reason) break;
+            }
+          }
+
+          if (reason) addCandidate(r, c, reason);
+        }
+      }
+
+      if (candidates.length > 0) return candidates;
+
+      const colorOpenCells = Array.from({ length: n }, () => []);
+      for (let r = 0; r < n; r++) {
+        for (let c = 0; c < n; c++) {
+          if (cellState[r][c] === "hidden") {
+            colorOpenCells[gridColors[r][c]].push({ r, c });
+          }
+        }
+      }
+
+      const activeColors = [];
+      for (let colorIdx = 0; colorIdx < n; colorIdx++) {
+        let hasBall = false;
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            if (gridColors[r][c] === colorIdx && cellState[r][c] === "ball") {
+              hasBall = true;
+              break;
+            }
+          }
+        }
+        if (!hasBall && colorOpenCells[colorIdx].length > 0) {
+          activeColors.push(colorIdx);
+        }
+      }
+
+      for (let k = 1; k <= Math.min(3, activeColors.length); k++) {
+        const combinations = getCombinations(activeColors, k);
+        for (const colorSet of combinations) {
+          const occupiedRows = new Set();
+          colorSet.forEach((colorIdx) => {
+            colorOpenCells[colorIdx].forEach((cell) => occupiedRows.add(cell.r));
+          });
+
+          if (occupiedRows.size === k) {
+            const lockedRows = Array.from(occupiedRows);
+            for (const r of lockedRows) {
+              for (let c = 0; c < n; c++) {
+                if (cellState[r][c] === "hidden") {
+                  const cellColor = gridColors[r][c];
+                  if (!colorSet.includes(cellColor)) {
+                    const rowStr = lockedRows.map((idx) => idx + 1).join(", ");
+                    const reason = k === 1
+                      ? `Another color's remaining options are completely confined to row ${rowStr}.`
+                      : `${k} other colors have their options confined to rows ${rowStr}.`;
+                    addCandidate(r, c, reason);
+                  }
+                }
+              }
+            }
+          }
+
+          const occupiedCols = new Set();
+          colorSet.forEach((colorIdx) => {
+            colorOpenCells[colorIdx].forEach((cell) => occupiedCols.add(cell.c));
+          });
+
+          if (occupiedCols.size === k) {
+            const lockedCols = Array.from(occupiedCols);
+            for (const c of lockedCols) {
+              for (let r = 0; r < n; r++) {
+                if (cellState[r][c] === "hidden") {
+                  const cellColor = gridColors[r][c];
+                  if (!colorSet.includes(cellColor)) {
+                    const colStr = lockedCols.map((idx) => idx + 1).join(", ");
+                    const reason = k === 1
+                      ? `Another color's remaining options are completely confined to column ${colStr}.`
+                      : `${k} other colors have their options confined to columns ${colStr}.`;
+                    addCandidate(r, c, reason);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return candidates;
+    }
+
+    function giveHint() {
+      if (gameOver || hintsRemaining <= 0) return;
+
+      const candidates = findDeductibleXMarks();
+      if (candidates.length === 0) {
+        updateStatus("No direct hints available right now.");
+        return;
+      }
+
+      hintsRemaining--;
+      updateChargesUI();
+      playSound('hint');
+
+      const target = candidates[Math.floor(Math.random() * candidates.length)];
+      cellState[target.row][target.col] = "marked";
+
+      const cellEl = getCellElement(target.row, target.col);
+      updateCellElement(cellEl, target.row, target.col);
+
+      cellEl.classList.remove("hint-pulse");
+      void cellEl.offsetWidth;
+      cellEl.classList.add("hint-pulse");
+
+      updateStatus(`Hint (${target.row + 1}, ${target.col + 1}): ${target.reason}`);
+    }
+
+    function endGame(isWin) {
+      gameOver = true;
+      
+      if (isWin) {
+        playSound('win');
+        boardEl.classList.add("win-pulse");
+        updateStatus("All balls found — puzzle complete!");
+      } else {
+        for (let r = 0; r < n; r++) {
+          const c = ballRows[r];
+          if (cellState[r][c] !== "ball") {
+            cellState[r][c] = "ball";
+            updateCellElement(getCellElement(r, c), r, c);
+          }
+        }
+        renderLegend();
+        updateStatus("Game Over — Out of lives!");
+      }
+
+      for (const cell of boardEl.children) {
+        cell.disabled = true;
+      }
+      hintBtn.disabled = true;
+      revealBtn.disabled = true;
+    }
+
+    function getCellFromPoint(clientX, clientY) {
+      const el = document.elementFromPoint(clientX, clientY);
+      if (el && el.classList.contains("cell")) {
+        return { row: Number(el.dataset.row), col: Number(el.dataset.col) };
+      }
+      return null;
+    }
+
+    function handlePointerDown(e) {
+      if (gameOver || e.button !== 0) return;
+      
+      const target = getCellFromPoint(e.clientX, e.clientY);
+      if (!target) return;
+
+      const { row, col } = target;
+      const state = cellState[row][col];
+      if (state === "ball" || state === "empty") return;
+
+      const now = Date.now();
+      const key = `${row},${col}`;
+      const lastTime = lastClickTimes[key] || 0;
+
+      if (now - lastTime < 300) {
+        lastClickTimes[key] = 0;
+        isMouseDown = false;
+        revealSquare(row, col);
+      } else {
+        lastClickTimes[key] = now;
+        isMouseDown = true;
+        isDragging = false;
+        dragMarkMode = state === "marked" ? "hidden" : "marked";
+        markSquareTarget(row, col, dragMarkMode);
+      }
+    }
+
+    function handlePointerMove(e) {
+      if (!isMouseDown || gameOver) return;
+
+      const target = getCellFromPoint(e.clientX, e.clientY);
+      if (target) {
+        isDragging = true;
+        markSquareTarget(target.row, target.col, dragMarkMode);
+      }
+    }
+
+    function handlePointerUp() {
+      isMouseDown = false;
+      dragMarkMode = null;
+    }
+
+    boardEl.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+
+    document.querySelectorAll(".size-btn").forEach((btn) => {
+      btn.addEventListener("click", () => startGame(Number(btn.dataset.size)));
+    });
+
+    backBtn.addEventListener("click", backToMenu);
+    resetBtn.addEventListener("click", () => startGame(n));
+    metricsBtn.addEventListener("click", recalculateCurrentMetrics);
+    if (hintBtn) hintBtn.addEventListener("click", giveHint);
+    if (revealBtn) revealBtn.addEventListener("click", revealOneBall);
+  </script>
+</body>
+</html>
