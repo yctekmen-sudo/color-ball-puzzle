@@ -1618,5 +1618,58 @@
     if (hintBtn) hintBtn.addEventListener("click", giveHint);
     if (revealBtn) revealBtn.addEventListener("click", revealOneBall);
   </script>
+
+<!-- iOS touch diagnostic: enabled only with ?iosdebug=1; remove after testing. -->
+<script>
+(() => {
+  if (new URLSearchParams(location.search).get("iosdebug") !== "1") return;
+  const panel = document.createElement("pre");
+  panel.id = "ios-touch-diagnostic";
+  Object.assign(panel.style, {
+    position: "fixed", top: "0", left: "0", right: "0", zIndex: "2147483647",
+    maxHeight: "32vh", overflow: "hidden", margin: "0", padding: "8px",
+    background: "rgba(0,0,0,.88)", color: "#80ff9b", font: "11px/1.4 monospace",
+    whiteSpace: "pre-wrap", pointerEvents: "none"
+  });
+  document.body.appendChild(panel);
+  const lines = [];
+  const write = (s) => {
+    lines.push(s);
+    if (lines.length > 13) lines.shift();
+    panel.textContent = lines.join("\n");
+  };
+  const describe = (el) => {
+    const cell = el && el.closest && el.closest(".cell");
+    return cell ? "cell(" + cell.dataset.row + "," + cell.dataset.col + ")" : (el && el.tagName || "none");
+  };
+  write("iOS diagnostic ON | " + navigator.userAgent.slice(0, 95));
+  ["pointerdown", "pointerup", "pointercancel", "touchstart", "touchend", "touchcancel", "click", "dblclick"].forEach(type => {
+    document.addEventListener(type, e => {
+      const cell = e.target.closest && e.target.closest(".cell");
+      const name = describe(e.target);
+      const detail = e.pointerType ? " " + e.pointerType + " id=" + e.pointerId + " button=" + e.button : "";
+      write(type + " " + name + detail);
+      if (cell) setTimeout(() => {
+        const css = getComputedStyle(cell);
+        write("  state=" + (cell.className || "") + " text=" + JSON.stringify(cell.textContent) +
+          " color=" + css.color + " stroke=" + css.webkitTextStrokeColor +
+          " touch=" + css.touchAction);
+      }, 0);
+    }, true);
+  });
+  const board = document.getElementById("board");
+  if (board) {
+    new MutationObserver(records => {
+      const changed = records.map(r => r.target.closest && r.target.closest(".cell")).filter(Boolean);
+      if (changed.length) write("DOM changed: " + describe(changed[0]));
+    }).observe(board, {subtree:true, childList:true, attributes:true, characterData:true});
+    write("board touch-action=" + getComputedStyle(board).touchAction);
+  } else write("WARNING: board element not found");
+  if (window.visualViewport) {
+    visualViewport.addEventListener("resize", () => write("viewport scale=" + visualViewport.scale.toFixed(2)));
+  }
+})();
+</script>
+
 </body>
 </html>
