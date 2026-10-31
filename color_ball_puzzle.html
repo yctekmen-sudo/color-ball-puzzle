@@ -368,9 +368,9 @@
     }
 
     .cell.marked {
-      color: #ffffff00;
+      color: #ffffff;
       font-weight: 900;
-      -webkit-text-stroke: 1px #ffffff00;
+      -webkit-text-stroke: 1px #000000;
       paint-order: stroke fill;
     }
 
@@ -1169,6 +1169,8 @@
         livesRemaining = 3;
         gameOver = false;
         lastClickTimes = {};
+        activeTouch = null;
+        lastTouchTap = null;
         isMouseDown = false;
         dragMarkMode = null;
         isDragging = false;
@@ -1562,51 +1564,84 @@
       return null;
     }
 
+    // Touch gestures are completed on pointerup. Mouse dragging remains immediate.
+    let activeTouch = null;
+    let lastTouchTap = null;
+    const DOUBLE_TAP_MS = 350;
+    const TAP_SLOP_PX = 18;
+
     function handlePointerDown(e) {
       if (gameOver || e.button !== 0) return;
-      
       const target = getCellFromPoint(e.clientX, e.clientY);
       if (!target) return;
+      if (e.pointerType === "touch" || e.pointerType === "pen") {
+        activeTouch = { id: e.pointerId, ...target, x: e.clientX, y: e.clientY, moved: false };
+        return;
+      }
 
       const { row, col } = target;
       const state = cellState[row][col];
       if (state === "ball" || state === "empty") return;
-
       const now = Date.now();
       const key = `${row},${col}`;
       const lastTime = lastClickTimes[key] || 0;
-
-      if (now - lastTime < 300) {
+      if (now - lastTime < DOUBLE_TAP_MS) {
         lastClickTimes[key] = 0;
         isMouseDown = false;
+        dragMarkMode = null;
         revealSquare(row, col);
       } else {
         lastClickTimes[key] = now;
         isMouseDown = true;
-        isDragging = false;
         dragMarkMode = state === "marked" ? "hidden" : "marked";
         markSquareTarget(row, col, dragMarkMode);
       }
     }
 
     function handlePointerMove(e) {
-      if (!isMouseDown || gameOver) return;
-
-      const target = getCellFromPoint(e.clientX, e.clientY);
-      if (target) {
-        isDragging = true;
-        markSquareTarget(target.row, target.col, dragMarkMode);
+      if (activeTouch && e.pointerId === activeTouch.id) {
+        if (Math.hypot(e.clientX - activeTouch.x, e.clientY - activeTouch.y) > TAP_SLOP_PX) {
+          activeTouch.moved = true;
+        }
+        return;
       }
+      if (!isMouseDown || gameOver || e.pointerType !== "mouse") return;
+      const target = getCellFromPoint(e.clientX, e.clientY);
+      if (target) markSquareTarget(target.row, target.col, dragMarkMode);
     }
 
-    function handlePointerUp() {
-      isMouseDown = false;
-      dragMarkMode = null;
+    function handlePointerUp(e) {
+      if (activeTouch && e.pointerId === activeTouch.id) {
+        const tap = activeTouch;
+        activeTouch = null;
+        if (gameOver || tap.moved || e.type === "pointercancel") return;
+        const target = getCellFromPoint(e.clientX, e.clientY);
+        if (!target || target.row !== tap.row || target.col !== tap.col) return;
+        const now = Date.now();
+        const isDouble = lastTouchTap &&
+          lastTouchTap.row === tap.row && lastTouchTap.col === tap.col &&
+          now - lastTouchTap.time <= DOUBLE_TAP_MS;
+        lastTouchTap = isDouble ? null : { row: tap.row, col: tap.col, time: now };
+        if (isDouble) {
+          revealSquare(tap.row, tap.col);
+        } else {
+          const state = cellState[tap.row][tap.col];
+          if (state === "hidden" || state === "marked") {
+            markSquareTarget(tap.row, tap.col, state === "marked" ? "hidden" : "marked");
+          }
+        }
+        return;
+      }
+      if (e.pointerType === "mouse") {
+        isMouseDown = false;
+        dragMarkMode = null;
+      }
     }
 
     boardEl.addEventListener("pointerdown", handlePointerDown);
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
 
     document.querySelectorAll(".size-btn").forEach((btn) => {
       btn.addEventListener("click", () => startGame(Number(btn.dataset.size)));
